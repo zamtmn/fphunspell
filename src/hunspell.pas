@@ -221,7 +221,7 @@ begin
   if HunLibHandle<>NilHandle then begin
     LInfo(format('THunspell.SetDictionary(%s)',[DictName]));
     if not FileExists(DictName) then begin
-      LInfo(format(rsDictionaryFileNotFound,[DictName]));
+      LError(format(rsDictionaryFileNotFound,[DictName]));
       exit(False);
     end;
     Aff:=ExtractFileNameWithoutExt(DictName);
