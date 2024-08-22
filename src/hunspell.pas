@@ -7,12 +7,6 @@ interface
 uses
   Classes,dynlibs,SysUtils,LazFileUtils;
 
-resourcestring
-  rsDictionaryFileNotFound='Dictionary file "%s" not found';
-  rsFailedToLoadLibrary='Failed to load library %s';
-  rsLibraryLoaded='Library "%s" loaded';
-  rsWrongLibrary='Failed to find Hunspell_ functions in "%s"';
-
 {$INCLUDE hunspell.inc}
 
 type
@@ -34,14 +28,33 @@ type
       constructor CreateRec(const ALibName:String;ALogProc:TLogProc);
       procedure DestroyRec;
       function isReady:boolean;
-      function Spell(Word: string): boolean;//true if ok
-      procedure Suggest(Word: string; List: TStrings);
-      procedure Add(Word: string);
-      procedure Remove(Word: string);
-      function SetDictionary(const DictName: string) : boolean;
+      function Spell(Word:string): boolean;//true if ok
+      procedure Suggest(Word:string; List: TStrings);
+      procedure Add(Word:string);
+      procedure Remove(Word:string);
+      function SetDictionary(const DictName:string):boolean;
   end;
 
 implementation
+
+resourcestring
+  rsDictionaryFileNotFound='Dictionary file "%s" not found';
+  rsFailedToLoadLibrary='Failed to load library %s';
+  rsLibraryLoaded='Library "%s" loaded';
+  rsWrongLibrary='Failed to find Hunspell_ functions in "%s"';
+  rsGetProcAddressError='GetProcAddress(%s)=Nil';
+
+const
+  CFNHunspell_create='Hunspell_create';
+  CFNHunspell_destroy='Hunspell_destroy';
+  CFNHunspell_spell='Hunspell_spell';
+  CFNHunspell_suggest='Hunspell_suggest';
+  CFNHunspell_analyze='Hunspell_analyze';
+  CFNHunspell_stem='Hunspell_stem';
+  CFNHunspell_get_dic_encoding='Hunspell_get_dic_encoding';
+  CFNHunspell_free_list='Hunspell_free_list';
+  CFNHunspell_add='Hunspell_add';
+  CFNHunspell_remove='Hunspell_remove';
 
 var
   HunLibHandle:TLibHandle;
@@ -81,38 +94,48 @@ begin
 end;
 
 function THunspell.LoadHunspellLib(ALibName:String):Boolean;
-begin
-    HunLibHandle := LoadLibrary(PAnsiChar(ALibName));
-    if HunLibHandle = NilHandle then begin
-        LError(format(rsFailedToLoadLibrary,[ALibName]));
-        exit(false);
+  procedure GetProcAddressError(AProcName:string);
+  begin
+    LError(format(rsGetProcAddressError,[AProcName]));
+    Result := False;
+  end;
+ begin
+  if HunLibHandle=NilHandle then begin
+    HunLibHandle:=LoadLibrary(PAnsiChar(ALibName));
+    if HunLibHandle=NilHandle then begin
+      LError(format(rsFailedToLoadLibrary,[ALibName]));
+      exit(false);
     end else begin
-        Result := True;
-        Hunspell_create := THunspell_create(GetProcAddress(HunLibHandle, 'Hunspell_create'));
-        if not Assigned(Hunspell_create) then Result := False; 
-    	Hunspell_destroy := Thunspell_destroy(GetProcAddress(HunLibHandle, 'Hunspell_destroy'));
-        if not Assigned(Hunspell_destroy) then Result := False;
-        Hunspell_spell := THunspell_spell(GetProcAddress(HunLibHandle, 'Hunspell_spell'));
-        if not Assigned(Hunspell_spell) then Result := False;
-        Hunspell_suggest := THunspell_suggest(GetProcAddress(HunLibHandle, 'Hunspell_suggest'));
-        if not Assigned(Hunspell_suggest) then Result := False;
-        Hunspell_analyze := THunspell_analyze(GetProcAddress(HunLibHandle, 'Hunspell_analyze'));
-        if not Assigned(Hunspell_analyze) then Result := False;
-        Hunspell_stem := THunspell_stem(GetProcAddress(HunLibHandle, 'Hunspell_stem'));
-        if not Assigned(Hunspell_stem) then Result := False;
-        Hunspell_get_dic_encoding := THunspell_get_dic_encoding(GetProcAddress(HunLibHandle, 'Hunspell_get_dic_encoding'));
-        if not Assigned(Hunspell_get_dic_encoding) then Result := False;
-        Hunspell_free_list := THunspell_free_list(GetProcAddress(HunLibHandle, 'Hunspell_free_list'));
-        if not Assigned(Hunspell_free_list) then Result := False;
-        Hunspell_add := THunspell_add(GetProcAddress(HunLibHandle, 'Hunspell_add'));
-        if not Assigned(Hunspell_add) then Result := False;
-        Hunspell_remove := THunspell_remove(GetProcAddress(HunLibHandle, 'Hunspell_remove'));
-        if not Assigned(Hunspell_remove) then Result := False;
+      Result:=True;
+      Hunspell_create:=THunspell_create(GetProcAddress(HunLibHandle,CFNHunspell_create));
+      if not Assigned(Hunspell_create) then GetProcAddressError(CFNHunspell_create);
+      Hunspell_destroy:=Thunspell_destroy(GetProcAddress(HunLibHandle,CFNHunspell_destroy));
+      if not Assigned(Hunspell_destroy) then GetProcAddressError(CFNHunspell_destroy);
+      Hunspell_spell:=THunspell_spell(GetProcAddress(HunLibHandle,CFNHunspell_spell));
+      if not Assigned(Hunspell_spell) then GetProcAddressError(CFNHunspell_spell);
+      Hunspell_suggest:=THunspell_suggest(GetProcAddress(HunLibHandle,CFNHunspell_suggest));
+      if not Assigned(Hunspell_suggest) then GetProcAddressError(CFNHunspell_suggest);
+      Hunspell_analyze:=THunspell_analyze(GetProcAddress(HunLibHandle,CFNHunspell_analyze));
+      if not Assigned(Hunspell_analyze) then GetProcAddressError(CFNHunspell_analyze);
+      Hunspell_stem:=THunspell_stem(GetProcAddress(HunLibHandle,CFNHunspell_stem));
+      if not Assigned(Hunspell_stem) then GetProcAddressError(CFNHunspell_stem);
+      Hunspell_get_dic_encoding:=THunspell_get_dic_encoding(GetProcAddress(HunLibHandle,CFNHunspell_get_dic_encoding));
+      if not Assigned(Hunspell_get_dic_encoding) then GetProcAddressError(CFNHunspell_get_dic_encoding);
+      Hunspell_free_list:=THunspell_free_list(GetProcAddress(HunLibHandle,CFNHunspell_free_list));
+      if not Assigned(Hunspell_free_list) then GetProcAddressError(CFNHunspell_free_list);
+      Hunspell_add:=THunspell_add(GetProcAddress(HunLibHandle,CFNHunspell_add));
+      if not Assigned(Hunspell_add) then GetProcAddressError(CFNHunspell_add);
+      Hunspell_remove:=THunspell_remove(GetProcAddress(HunLibHandle,CFNHunspell_remove));
+      if not Assigned(Hunspell_remove) then GetProcAddressError(CFNHunspell_remove);
     end;
     if Result then
       LInfo(format(rsLibraryLoaded,[ALibName]))
-    else
+    else begin
       LError(format(rsWrongLibrary,[ALibName]));
+      UnloadLibrary(HunLibHandle);
+      HunLibHandle:=NilHandle;
+    end;
+  end;
 end;
 
 constructor THunspell.CreateRec(const ALibName:String;ALogProc:TLogProc);
