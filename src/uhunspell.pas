@@ -1,6 +1,19 @@
+{	Copyright (C) 2024 Andrey Zubarev <zamtmn@yandex.ru>.
+
+    Based on https://github.com/davidbannon/hunspell4pas
+
+    License:
+    This code is licensed under BSD 3-Clause Clear License, see file License.txt
+    or https://spdx.org/licenses/BSD-3-Clause-Clear.html
+
+    Note this unit 'includes' hunspell.inc that has a different license, please
+    see that file for details.
+}
+
 unit uHunspell;
 {$Mode delphi}{$H+}
 {$ModeSwitch advancedrecords}
+{$Codepage UTF8}
 
 interface
 

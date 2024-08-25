@@ -1,19 +1,13 @@
-{
-*****************************************************************************
-*                                                                           *
-*  This file is part of the ZCAD                                            *
-*                                                                           *
-*  See the file COPYING.txt, included in this distribution,                 *
-*  for details about the copyright.                                         *
-*                                                                           *
-*  This program is distributed in the hope that it will be useful,          *
-*  but WITHOUT ANY WARRANTY; without even the implied warranty of           *
-*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                     *
-*                                                                           *
-*****************************************************************************
-}
-{
-@author(Andrey Zubarev <zamtmn@yandex.ru>) 
+{	Copyright (C) 2024 Andrey Zubarev <zamtmn@yandex.ru>.
+
+    Based on https://github.com/davidbannon/hunspell4pas
+
+    License:
+    This code is licensed under BSD 3-Clause Clear License, see file License.txt
+    or https://spdx.org/licenses/BSD-3-Clause-Clear.html
+
+    Note this unit 'includes' hunspell.inc that has a different license, please
+    see that file for details.
 }
 
 unit uSpeller;
