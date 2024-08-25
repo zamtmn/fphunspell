@@ -8,7 +8,7 @@ unit fphunspell;
 interface
 
 uses
-  hunspell, LazarusPackageIntf;
+  uHunspell, uSpeller, LazarusPackageIntf;
 
 implementation
 

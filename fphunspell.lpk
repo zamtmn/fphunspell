@@ -10,13 +10,17 @@
       <SearchPaths>
         <IncludeFiles Value="src\inc"/>
         <OtherUnitFiles Value="src"/>
-        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
     <Files>
       <Item>
-        <Filename Value="src\hunspell.pas"/>
-        <UnitName Value="hunspell"/>
+        <Filename Value="src\uhunspell.pas"/>
+        <UnitName Value="uHunspell"/>
+      </Item>
+      <Item>
+        <Filename Value="src\uspeller.pas"/>
+        <UnitName Value="uSpeller"/>
       </Item>
     </Files>
     <RequiredPkgs>

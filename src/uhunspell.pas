@@ -1,4 +1,4 @@
-unit hunspell;
+unit uHunspell;
 {$Mode delphi}{$H+}
 {$ModeSwitch advancedrecords}
 
@@ -33,6 +33,7 @@ type
       procedure Add(Word:string);
       procedure Remove(Word:string);
       function SetDictionary(const DictName:string):boolean;
+      function AddDictionary(const DictName:string):boolean;
   end;
 
 implementation
@@ -55,6 +56,7 @@ const
   CFNHunspell_free_list='Hunspell_free_list';
   CFNHunspell_add='Hunspell_add';
   CFNHunspell_remove='Hunspell_remove';
+  CFNHunspell_add_dic='Hunspell_add_dic';
 
 var
   HunLibHandle:TLibHandle;
@@ -68,6 +70,7 @@ var
   Hunspell_add: THunspell_add;
   Hunspell_free_list: THunspell_free_list;
   Hunspell_remove: THunspell_remove;
+  Hunspell_add_dic: THunspell_add_dic;
 
 procedure THunspell.LWarning(AMsg:string);
 begin
@@ -127,6 +130,8 @@ function THunspell.LoadHunspellLib(ALibName:String):Boolean;
       if not Assigned(Hunspell_add) then GetProcAddressError(CFNHunspell_add);
       Hunspell_remove:=THunspell_remove(GetProcAddress(HunLibHandle,CFNHunspell_remove));
       if not Assigned(Hunspell_remove) then GetProcAddressError(CFNHunspell_remove);
+      Hunspell_add_dic:=THunspell_remove(GetProcAddress(HunLibHandle,CFNHunspell_add_dic));
+      if not Assigned(Hunspell_add_dic) then GetProcAddressError(CFNHunspell_add_dic);
     end;
     if Result then
       LInfo(format(rsLibraryLoaded,[ALibName]))
@@ -241,6 +246,24 @@ begin
         LError('Expection in THunspell.SetDictionary');
     end;
     Result:=pHunspell<>nil;
+  end;
+end;
+
+function THunspell.AddDictionary(const DictName:string):boolean;
+begin
+  if HunLibHandle<>NilHandle then begin
+    LInfo(format('THunspell.AddDictionary(%s)',[DictName]));
+    if not FileExists(DictName) then begin
+      LError(format(rsDictionaryFileNotFound,[DictName]));
+      exit(False);
+    end;
+    try
+      result:=Hunspell_add_dic(pHunspell,PChar(DictName))<>0;
+    except
+      on E: Exception do LError(format('Hunspell %s',[E.Message]));
+      else
+        LError('Expection in THunspell.AddDictionary');
+    end;
   end;
 end;
 
