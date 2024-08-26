@@ -1256,6 +1256,7 @@ var
 begin
   ErrW:='';
   result:=NoText;
+  if text='' then exit;
   startw:=1;
   GetWord;
   word:=Copy(text,startw,endw-startw);
