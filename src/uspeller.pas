@@ -18,7 +18,7 @@ unit uSpeller;
 interface
 
 uses
-  SysUtils,FileUtil,
+  SysUtils,FileUtil,Classes,
   gvector,
   uHunspell;
 
@@ -26,22 +26,27 @@ type
 
   TSymType=(STLowLetter,STUpLetter,STNotLetter);
 
-  TSpellerData=record
-    Lang:string;
-    Speller:THunspell;
-  end;
-
-  TZCSpeller=record
+  TSpeller=record
     private
       type
+        TSpellerData=record
+          Lang:string;
+          Speller:THunspell;
+        end;
         TSpellers=specialize TVector<TSpellerData>;
+
       var
         Spellers:TSpellers;
         LogProc:TLogProc;
     public
       type
         TLangHandle=integer;
+        TSpellOpt=(SOFirstError,SOSuggest);
+        TSpellOpts=set of TSpellOpt;
+
       const
+        CSpellOptFast=[SOFirstError];
+        CSpellOptDetail=[SOSuggest];
         WrongLang=-1;
         MixedLang=-2;
         NoText=-3;
@@ -50,7 +55,8 @@ type
     function LoadDictionary(const DictName:string;const Lang:string=''):TLangHandle;
     procedure LoadDictionaries(Dicts:string);
     function SpellWord(Word:String):TLangHandle;//>WrongLang if ok
-    function SpellTextSimple(Text:String;out ErrW:string):TLangHandle;//>WrongLang or MixedLang or NoText if ok
+    function SpellTextSimple(Text:String;out ErrW:string;Opt:TSpellOpts):TLangHandle;//>WrongLang or MixedLang or NoText if ok
+    procedure Suggest(Word:string; List: TStrings);
   end;
 
 implementation
@@ -1123,18 +1129,18 @@ begin
   end;
 end;
 
-constructor TZCSpeller.CreateRec(ALogProc:TLogProc);
+constructor TSpeller.CreateRec(ALogProc:TLogProc);
 begin
   LogProc:=ALogProc;
   Spellers:=TSpellers.Create;
 end;
 
-procedure TZCSpeller.DestroyRec;
+procedure TSpeller.DestroyRec;
 begin
   Spellers.Destroy;
 end;
 
-function TZCSpeller.LoadDictionary(const DictName:string;const Lang:string=''):integer;
+function TSpeller.LoadDictionary(const DictName:string;const Lang:string=''):integer;
 var
   PSD:TSpellers.PT;
 begin
@@ -1172,7 +1178,7 @@ begin
 end;
 
 
-procedure TZCSpeller.LoadDictionaries(Dicts:string);
+procedure TSpeller.LoadDictionaries(Dicts:string);
 var
   LangDicts,Lang,LangDict:string;
   LangHandle:TLangHandle;
@@ -1193,7 +1199,7 @@ begin
   until Dicts='';
 end;
 
-function TZCSpeller.SpellWord(Word:String):TLangHandle;
+function TSpeller.SpellWord(Word:String):TLangHandle;
 var
   i:integer;
   PSD:TSpellers.PT;
@@ -1206,12 +1212,14 @@ begin
   Result:=WrongLang;
 end;
 
-function TZCSpeller.SpellTextSimple(Text:String;out ErrW:string):TLangHandle;
+function TSpeller.SpellTextSimple(Text:String;out ErrW:string;Opt:TSpellOpts):TLangHandle;
 var
   startw,endw,chlen:integer;
   word:string;
   t:TLangHandle;
   NeedSpellThisWord:boolean;
+  List:TStringList;
+  SugestCount:integer;
 
   function ItBreackSumbol(i:integer):boolean;
   begin
@@ -1257,37 +1265,71 @@ begin
   ErrW:='';
   result:=NoText;
   if text='' then exit;
-  startw:=1;
-  GetWord;
-  word:=Copy(text,startw,endw-startw);
-  if word<>''then begin
-    if NeedSpellThisWord then
-      result:=SpellWord(word);
-    if result=WrongLang then begin
-      ErrW:=word;
-      exit;
-    end;
-    startw:=endw;
-    while startw<=length(text) do begin
-      GetWord;
-      word:=Copy(text,startw,endw-startw);
-      if NeedSpellThisWord and (word<>'') then begin
-        t:=SpellWord(word);
-        case t of
-          WrongLang:begin
-            ErrW:=word;
-            exit(WrongLang);
-          end
-          else
-            if t<>result then
-              if result=NoText then
-                result:=t
-              else if t<>NoText then
-                result:=MixedLang;
-        end;
+  SugestCount:=0;
+  list:=nil;
+  try
+    startw:=1;
+    GetWord;
+    word:=Copy(text,startw,endw-startw);
+    if word<>''then begin
+      if NeedSpellThisWord then
+        result:=SpellWord(word);
+      if result=WrongLang then begin
+        ErrW:=word;
+        exit;
       end;
       startw:=endw;
+      while startw<=length(text) do begin
+        GetWord;
+        word:=Copy(text,startw,endw-startw);
+        if NeedSpellThisWord and (word<>'') then begin
+          t:=SpellWord(word);
+          case t of
+            WrongLang:begin
+              if ErrW='' then
+                ErrW:=ErrW+word
+              else
+                ErrW:=ErrW+'; '+word;
+              if SOFirstError in opt then
+                exit(WrongLang);
+              if (SOSuggest in opt)and(SugestCount<1) then begin
+                if list=nil then begin
+                  list:=TStringList.Create;
+                  list.LineBreak:=',';
+                  list.SkipLastLineBreak:=true;
+                end else
+                  list.Clear;
+                Suggest(word,list);
+                if list.Count>0 then begin
+                  ErrW:=ErrW+'['+list.Text+']';
+                  inc(SugestCount);
+                end;
+              end;
+            end
+            else
+              if t<>result then
+                if result=NoText then
+                  result:=t
+                else if t<>NoText then
+                  result:=MixedLang;
+          end;
+        end;
+        startw:=endw;
+      end;
     end;
+  finally
+    list.Free;
+  end;
+end;
+
+procedure TSpeller.Suggest(Word:string; List: TStrings);
+var
+  i:integer;
+  PSD:TSpellers.PT;
+begin
+  for i:=0 to Spellers.Size-1 do begin
+    PSD:=Spellers.Mutable[i];
+    PSD^.Speller.Suggest(Word,List)
   end;
 end;
 

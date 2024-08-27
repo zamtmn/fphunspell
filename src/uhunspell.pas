@@ -206,7 +206,7 @@ var
   SugList,Words:PPChar;
 begin
   if isReady then begin
-    List.clear;
+    //List.clear;
     try
       len := hunspell_suggest(pHunspell,SugList,PChar(Word));
       Words := SugList;
