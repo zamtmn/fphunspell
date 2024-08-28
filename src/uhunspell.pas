@@ -212,7 +212,7 @@ begin
       Words := SugList;
       for i := 1 to len do begin
         List.Add(Words^);
-        Inc(PtrInt(Words),sizeOf(Pointer));
+        inc(Words);
       end;
     finally
       Hunspell_free_list(pHunspell,SugList, len);
