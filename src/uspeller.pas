@@ -1227,7 +1227,7 @@ var
       chlen:=1;
       exit(false);
     end;
-    chlen:=Utf8CodePointLen(@Text[i],4,true);
+    chlen:=Utf8CodePointLen(@Text[i],4,false);
     if chlen=1 then
       result:=true
     else
