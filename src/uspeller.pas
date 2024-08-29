@@ -41,16 +41,22 @@ type
     public
       type
         TLangHandle=integer;
-        TSpellOpt=(SOFirstError,SOSuggest,SOCheckOneLetterWords);
+        TSpellOpt=(SOFirstError,           //завершение проверки при нахождении
+                                           //первой ошибки
+                   SOSuggest,              //предлагать варианты исправления
+                   SOCheckOneLetterWords,  //проверять слова из одной буквы
+                   SOCheckACadPercetCombo);//учет сочетаний %%d %%c %%p %%u
+                                           //как разделителей слов
         TSpellOpts=set of TSpellOpt;
 
       const
-        CSpellOptFast=[SOFirstError];
-        CSpellOptDetail=[SOSuggest];
-        WrongLang=-1;
-        MixedLang=-2;
-        NoText=-3;
-        CAbbrvDictName='abbrv';
+        CSpellOptFast=[SOFirstError,SOCheckACadPercetCombo];
+        CSpellOptDetail=[SOSuggest,SOCheckACadPercetCombo];
+        WrongLang=-1;          //слово не найдено ни в одном языке (ошбка в слове)
+        MixedLang=-2;          //в тексте слова на разных языках
+        NoText=-3;             //в тексте нет слов для проверки
+        CAbbrvDictName='abbrv';//название языка с сокращенными словами
+                               //должны заканчиваться точкой
     constructor CreateRec(ALogProc:TLogProc);
     procedure DestroyRec;
     function LoadDictionary(const DictName:string;const Lang:string=''):TLangHandle;
@@ -1223,14 +1229,24 @@ var
   NeedSpellThisWord,CanBeAbbrv:boolean;
   List:TStringList;
   SugestCount:integer;
+  percentchcount:integer;
 
 
   function ItBreackSumbol(i:integer):boolean;
   begin
+    characterlen:=1;
+    if percentchcount=2 then begin
+      case text[i] of
+        'd','D','c','C','p','P','u','U':exit(true);
+      end;
+    end;
     if ord(text[i])in[ord('a')..ord('z'),ord('A')..ord('Z')] then begin
-      characterlen:=1;
+      //characterlen:=1;
       exit(false);
     end;
+    if SOCheckACadPercetCombo in opt then
+      if text[i]='%' then
+        inc(percentchcount);
     characterlen:=Utf8CodePointLen(@Text[i],4,false);
     if characterlen=1 then
       result:=true
@@ -1241,6 +1257,7 @@ var
   procedure GetWord;
   begin
     CanBeAbbrv:=false;
+    percentchcount:=0;
     while startw<=length(text) do begin
      if not ItBreackSumbol(startw) then
        break;
@@ -1275,7 +1292,20 @@ var
       inc(endw,characterlen);
       inc(wordlen);
     end;
-
+  end;
+  procedure dosugest;
+  begin
+    if list=nil then begin
+      list:=TStringList.Create;
+      list.LineBreak:=',';
+      list.SkipLastLineBreak:=true;
+    end else
+      list.Clear;
+    Suggest(word,list);
+    if list.Count>0 then begin
+      ErrW:=ErrW+'['+list.Text+']';
+      inc(SugestCount);
+    end;
   end;
 
 begin
@@ -1284,6 +1314,7 @@ begin
   if text='' then exit;
   SugestCount:=0;
   list:=nil;
+
   try
     startw:=1;
     GetWord;
@@ -1293,7 +1324,10 @@ begin
         result:=SpellWord(word,CanBeAbbrv);
       if result=WrongLang then begin
         ErrW:=word;
-        exit;
+        if SOFirstError in opt then
+          exit;
+        if (SOSuggest in opt)and(SugestCount<1) then
+          dosugest;
       end;
       startw:=endw;
       while startw<=length(text) do begin
@@ -1309,19 +1343,8 @@ begin
                 ErrW:=ErrW+'; '+word;
               if SOFirstError in opt then
                 exit(WrongLang);
-              if (SOSuggest in opt)and(SugestCount<1) then begin
-                if list=nil then begin
-                  list:=TStringList.Create;
-                  list.LineBreak:=',';
-                  list.SkipLastLineBreak:=true;
-                end else
-                  list.Clear;
-                Suggest(word,list);
-                if list.Count>0 then begin
-                  ErrW:=ErrW+'['+list.Text+']';
-                  inc(SugestCount);
-                end;
-              end;
+              if (SOSuggest in opt)and(SugestCount<1) then
+                dosugest;
             end
             else
               if t<>result then
