@@ -41,7 +41,7 @@ type
     public
       type
         TLangHandle=integer;
-        TSpellOpt=(SOFirstError,SOSuggest);
+        TSpellOpt=(SOFirstError,SOSuggest,SOCheckOneLetterWords);
         TSpellOpts=set of TSpellOpt;
 
       const
@@ -1214,21 +1214,22 @@ end;
 
 function TSpeller.SpellTextSimple(Text:String;out ErrW:string;Opt:TSpellOpts):TLangHandle;
 var
-  startw,endw,chlen:integer;
+  startw,endw,characterlen,wordlen:integer;
   word:string;
   t:TLangHandle;
   NeedSpellThisWord:boolean;
   List:TStringList;
   SugestCount:integer;
 
+
   function ItBreackSumbol(i:integer):boolean;
   begin
     if ord(text[i])in[ord('a')..ord('z'),ord('A')..ord('Z')] then begin
-      chlen:=1;
+      characterlen:=1;
       exit(false);
     end;
-    chlen:=Utf8CodePointLen(@Text[i],4,false);
-    if chlen=1 then
+    characterlen:=Utf8CodePointLen(@Text[i],4,false);
+    if characterlen=1 then
       result:=true
     else
       result:=false;
@@ -1239,24 +1240,32 @@ var
     while startw<=length(text) do begin
      if not ItBreackSumbol(startw) then
        break;
-     inc(startw,chlen);
+     inc(startw,characterlen);
     end;
-    case GetUtf8SymType(text[startw..startw+chlen-1]) of
+    if startw>length(text) then begin
+      endw:=startw;
+      NeedSpellThisWord:=false;
+      wordlen:=0;
+      exit;
+    end;
+    case GetUtf8SymType(text[startw..startw+characterlen-1]) of
       STLowLetter:begin NeedSpellThisWord:=True;end;
       STUpLetter:begin NeedSpellThisWord:=True;end;
       STNotLetter:NeedSpellThisWord:=false;
     end;
-    endw:=startw+chlen;
+    endw:=startw+characterlen;
+    wordlen:=1;
     while endw<=length(text) do begin
       if ItBreackSumbol(endw) then
         break;
       if NeedSpellThisWord then
-        case GetUtf8SymType(text[endw..endw+chlen-1]) of
+        case GetUtf8SymType(text[endw..endw+characterlen-1]) of
           STLowLetter:;
           STUpLetter:NeedSpellThisWord:=false;
           STNotLetter:NeedSpellThisWord:=false;
         end;
-      inc(endw,chlen);
+      inc(endw,characterlen);
+      inc(wordlen);
     end;
 
   end;
@@ -1272,7 +1281,7 @@ begin
     GetWord;
     word:=Copy(text,startw,endw-startw);
     if word<>''then begin
-      if NeedSpellThisWord then
+      if (NeedSpellThisWord)and((wordlen>1)or(SOCheckOneLetterWords in opt)) then
         result:=SpellWord(word);
       if result=WrongLang then begin
         ErrW:=word;
@@ -1282,7 +1291,7 @@ begin
       while startw<=length(text) do begin
         GetWord;
         word:=Copy(text,startw,endw-startw);
-        if NeedSpellThisWord and (word<>'') then begin
+        if (NeedSpellThisWord)and((wordlen>1)or(SOCheckOneLetterWords in opt)) and (word<>'') then begin
           t:=SpellWord(word);
           case t of
             WrongLang:begin
