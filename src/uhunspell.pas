@@ -33,7 +33,6 @@ type
       pHunspell:Pointer;
       LogProc:TLogProc;
       function LoadHunspellLib(ALibName:String):Boolean;
-      procedure FreeHunspellLib;
       procedure LWarning(AMsg:string);
       procedure LError(AMsg:string);
       procedure LInfo(AMsg:string);
@@ -103,7 +102,7 @@ begin
     LogProc(MsgInfo,AMsg);
 end;
 
-procedure THunspell.FreeHunspellLib;
+procedure FreeHunspellLib;
 begin
   FreeLibrary(HunLibHandle);
   HunLibHandle:=NilHandle;
@@ -183,8 +182,6 @@ begin
     hunspell_destroy(pHunspell);
     pHunspell:=nil;
   end;
-  if HunLibHandle<>0 then
-    FreeHunspellLib;
 end;
 
 function THunspell.isReady:boolean;
@@ -282,4 +279,7 @@ end;
 
 initialization
   HunLibHandle:=NilHandle;
+finalization
+  if HunLibHandle<>0 then
+    FreeHunspellLib;
 end.

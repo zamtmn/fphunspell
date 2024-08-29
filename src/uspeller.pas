@@ -50,11 +50,12 @@ type
         WrongLang=-1;
         MixedLang=-2;
         NoText=-3;
+        CAbbrvDictName='abbrv';
     constructor CreateRec(ALogProc:TLogProc);
     procedure DestroyRec;
     function LoadDictionary(const DictName:string;const Lang:string=''):TLangHandle;
     procedure LoadDictionaries(Dicts:string);
-    function SpellWord(Word:String):TLangHandle;//>WrongLang if ok
+    function SpellWord(Word:String;const CanBeAbbrv:boolean=false):TLangHandle;//>WrongLang if ok
     function SpellTextSimple(Text:String;out ErrW:string;Opt:TSpellOpts):TLangHandle;//>WrongLang or MixedLang or NoText if ok
     procedure Suggest(Word:string; List: TStrings);
   end;
@@ -1151,7 +1152,8 @@ begin
     PSD^.Speller.CreateRec('',LogProc);
     if not PSD^.Speller.SetDictionary(DictName) then begin
       PSD^.Speller.DestroyRec;
-      Spellers.Erase(Spellers.Size-1);
+      Spellers.PopBack;
+      //Spellers.Erase(Spellers.Size-1);
       Result:=WrongLang;
     end;
     if Lang<>'' then
@@ -1199,15 +1201,16 @@ begin
   until Dicts='';
 end;
 
-function TSpeller.SpellWord(Word:String):TLangHandle;
+function TSpeller.SpellWord(Word:String;const CanBeAbbrv:boolean=false):TLangHandle;
 var
   i:integer;
   PSD:TSpellers.PT;
 begin
   for i:=0 to Spellers.Size-1 do begin
     PSD:=Spellers.Mutable[i];
-    if PSD^.Speller.Spell(Word) then
-      exit(i);
+    if(PSD^.Lang<>CAbbrvDictName)or(CanBeAbbrv)then;
+      if PSD^.Speller.Spell(Word) then
+        exit(i);
   end;
   Result:=WrongLang;
 end;
@@ -1217,7 +1220,7 @@ var
   startw,endw,characterlen,wordlen:integer;
   word:string;
   t:TLangHandle;
-  NeedSpellThisWord:boolean;
+  NeedSpellThisWord,CanBeAbbrv:boolean;
   List:TStringList;
   SugestCount:integer;
 
@@ -1237,6 +1240,7 @@ var
 
   procedure GetWord;
   begin
+    CanBeAbbrv:=false;
     while startw<=length(text) do begin
      if not ItBreackSumbol(startw) then
        break;
@@ -1256,8 +1260,12 @@ var
     endw:=startw+characterlen;
     wordlen:=1;
     while endw<=length(text) do begin
-      if ItBreackSumbol(endw) then
+      if ItBreackSumbol(endw) then begin
+        if characterlen=1 then
+          if text[endw]='.' then
+            CanBeAbbrv:=true;
         break;
+      end;
       if NeedSpellThisWord then
         case GetUtf8SymType(text[endw..endw+characterlen-1]) of
           STLowLetter:;
@@ -1282,7 +1290,7 @@ begin
     word:=Copy(text,startw,endw-startw);
     if word<>''then begin
       if (NeedSpellThisWord)and((wordlen>1)or(SOCheckOneLetterWords in opt)) then
-        result:=SpellWord(word);
+        result:=SpellWord(word,CanBeAbbrv);
       if result=WrongLang then begin
         ErrW:=word;
         exit;
@@ -1292,7 +1300,7 @@ begin
         GetWord;
         word:=Copy(text,startw,endw-startw);
         if (NeedSpellThisWord)and((wordlen>1)or(SOCheckOneLetterWords in opt)) and (word<>'') then begin
-          t:=SpellWord(word);
+          t:=SpellWord(word,CanBeAbbrv);
           case t of
             WrongLang:begin
               if ErrW='' then
