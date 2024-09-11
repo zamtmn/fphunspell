@@ -18,7 +18,7 @@ unit uHunspell;
 interface
 
 uses
-  Classes,dynlibs,SysUtils,LazFileUtils
+  Classes,dynlibs,SysUtils
   {$IfDef MSWINDOWS},windows{$EndIf};
 
 {$INCLUDE hunspell.inc}
@@ -228,6 +228,25 @@ procedure THunspell.Remove(Word:string);
 begin
   if isReady then
     Hunspell_remove(pHunspell,Pchar(Word));
+end;
+
+//From LazFileUtils
+function ExtractFileNameWithoutExt(const AFilename: string): string;
+var
+  p: Integer;
+begin
+  Result:=AFilename;
+  p:=length(Result);
+  while (p>0) do begin
+    case Result[p] of
+      PathDelim: exit;
+      {$ifdef windows}
+      '/': if ('/' in AllowDirectorySeparators) then exit;
+      {$endif}
+      '.': exit(copy(Result,1, p-1));
+    end;
+    dec(p);
+  end;
 end;
 
 function THunspell.SetDictionary(const DictName:string):boolean;

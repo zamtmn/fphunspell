@@ -25,9 +25,6 @@
     </Files>
     <RequiredPkgs>
       <Item>
-        <PackageName Value="LazUtils"/>
-      </Item>
-      <Item>
         <PackageName Value="FCL"/>
       </Item>
     </RequiredPkgs>
