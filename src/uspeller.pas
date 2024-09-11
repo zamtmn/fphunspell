@@ -18,7 +18,7 @@ unit uSpeller;
 interface
 
 uses
-  SysUtils,FileUtil,Classes,
+  SysUtils,Classes,
   gvector,
   uHunspell;
 
