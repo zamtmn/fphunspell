@@ -18,7 +18,8 @@ unit uHunspell;
 interface
 
 uses
-  Classes,dynlibs,SysUtils,LazFileUtils;
+  Classes,dynlibs,SysUtils,LazFileUtils
+  {$IfDef MSWINDOWS},windows{$EndIf};
 
 {$INCLUDE hunspell.inc}
 
@@ -231,7 +232,11 @@ end;
 
 function THunspell.SetDictionary(const DictName:string):boolean;
 var
-  Aff:string;
+  Aff:RawByteString;
+ {$IfDef MSWINDOWS}
+  ACPDictName:RawByteString;
+  ACP:UINT;
+ {$EndIf}
 begin
   if HunLibHandle<>NilHandle then begin
     LInfo(format('THunspell.SetDictionary(%s)',[DictName]));
@@ -248,8 +253,17 @@ begin
     try
       if assigned(pHunspell) then
         hunspell_destroy(pHunspell)
-      else
+      else begin
+       {$IfDef MSWINDOWS}
+        ACPDictName:=DictName;
+        ACP:=windows.GetACP;
+        SetCodePage(ACPDictName,ACP,true);
+        SetCodePage(Aff,ACP,true);
+        pHunspell:=hunspell_create(PChar(Aff),PChar(ACPDictName));
+       {$Else}
         pHunspell:=hunspell_create(PChar(Aff),PChar(DictName));
+       {$EndIf}
+      end;
     except
       on E: Exception do LError(format('Hunspell %s',[E.Message]));
       else
@@ -260,6 +274,10 @@ begin
 end;
 
 function THunspell.AddDictionary(const DictName:string):boolean;
+{$IfDef MSWINDOWS}
+var
+  ACPDictName:RawByteString;
+{$EndIf}
 begin
   if HunLibHandle<>NilHandle then begin
     LInfo(format('THunspell.AddDictionary(%s)',[DictName]));
@@ -268,7 +286,13 @@ begin
       exit(False);
     end;
     try
+     {$IfDef MSWINDOWS}
+      ACPDictName:=DictName;
+      SetCodePage(ACPDictName,windows.GetACP,true);
+      result:=Hunspell_add_dic(pHunspell,PChar(ACPDictName))<>0;
+     {$Else}
       result:=Hunspell_add_dic(pHunspell,PChar(DictName))<>0;
+     {$EndIf}
     except
       on E: Exception do LError(format('Hunspell %s',[E.Message]));
       else
